@@ -31,7 +31,7 @@ function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.W
   let remaining_quantities_values = remaining_quantities_sheet.getRange("E3:E206").getValues();
 
   // Duplicating template tab
-  let new_mc_sheet = mc_template_sheet.copy(ExcelScript.WorksheetPositionType.after, mc_template_sheet);
+  let new_mc_sheet = mc_template_sheet.copy(ExcelScript.WorksheetPositionType.after, config_sheet);
   new_mc_sheet.setName(new_mc_tab_name.toString());
 
   // Adding remaining quantities to new mc sheet
