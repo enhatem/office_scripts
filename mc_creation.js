@@ -16,10 +16,13 @@ function main(workbook: ExcelScript.Workbook) {
   // Extracting total and individual databases objects
   let total_db = databases.totalDatabases;
   let individual_db = databases.individualDatabases;
-  
-  console.log(total_db);
+  console.log(individual_db);
+  for (const element in individual_db){
+    console.log(element);
+    console.log(individual_db[element]);
+  }
   // Creating New MC using the MC tab name at the desired template
-  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db);
+  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db, dates_list);
 }
 
 function createDatabase(workbook: ExcelScript.Workbook, bl_tabs_list: string[]): { totalDatabases: object, individualDatabases: object }{
@@ -97,7 +100,7 @@ function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_e
   return {start: relative_start_row_index, end: relative_end_row_index };
 }
 
-function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: object, individual_databases: object) {
+function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: object, individual_databases: object, dates_list: string[]) {
   // Getting the desired new MC tab name using an XLOOKLUP function implementation
   let po_start_date_cell_address = findCellAddress(config_sheet, "PO Start Date");
   let onglet_mc_cell_address = findCellAddress(config_sheet, "Onglet MC");
@@ -115,22 +118,88 @@ function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.W
   remaining_quantities_range.setValues(remaining_quantities_values);
   // Adding new quantities
   addNewTotalQuantities(new_mc_sheet, total_database);
+  // Replace placeholders with dates
+  addDatesStrings(new_mc_sheet, dates_list);
+  // Creating list of PO Quantities ranges
+  let po_ranges_list = getPoQuantityRanges(new_mc_sheet);
+  // Adding quantities per periods
+  addQuantitiesPerPeriods(new_mc_sheet, po_ranges_list, individual_databases);
+}
+
+function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_list: ExcelScript.Range[], individual_databases: object){
+  
+}
+
+// Function that returns the 5 PO quantities ranges for a given worksheet
+function getPoQuantityRanges(worksheet: ExcelScript.Worksheet): ExcelScript.Range[]{
+  let po1_range = worksheet.getRange("L3:L206");
+  let po2_range = worksheet.getRange("P3:P206");
+  let po3_range = worksheet.getRange("T3:T206");
+  let po4_range = worksheet.getRange("X3:X206");
+  let po5_range = worksheet.getRange("AB3:AB206");
+  return [po1_range, po2_range, po3_range, po4_range, po5_range];
+}
+
+function addDatesStrings(worksheet: ExcelScript.Worksheet, date_list: string[]){
+  // Getting the placeholders range values
+  let placeholder_range = worksheet.getRange("L1:AE1");
+  let placeholder_range_values = placeholder_range.getValues()[0];  // the [0] is necessary to since we would get an array of arrays otherwise
+  // Replacing the placeholders with the dates from date_list
+  for (let i=0; i<date_list.length; i++){
+    for (let j = 0; j < placeholder_range_values.length; j++){
+      if (placeholder_range_values[j] === "PO"+(i+1)){
+        placeholder_range.getCell(0, j).setValue(date_list[i]);
+        break;
+      }
+    }
+  }
 }
 
 function addNewTotalQuantities(worksheet: ExcelScript.Worksheet, database: object){
   // Get relevant ranges
   let wp_values = worksheet.getRange("B3:B206").getValues();
-  let quantities_ranges = worksheet.getRange("E3:E206");
+  let quantities_ranges = worksheet.getRange("F3:F206");
   console.log("database= ", database);
-  // Iterate though the ranges of the item with the object and check if item exist and correspond to current item row
-  for (let i = 0; i < wp_values.length; i++){
-    let current_name = wp_values[i][0];
-    if (database.hasOwnProperty(current_name)){
-      console.log(current_name);
+  // Iterate though the items (workpackage names) in the database and find them in the newly created worksheet
+  for (const item in database){
+    let item_found = false;  // boolean used to verify that each item in database was found in the worksheet
+    let condition_met = false;  // boolean used to verify that data was added to worksheet for corresponding item
+    for (let i = 0; i < wp_values.length; i++){
+      if (item === wp_values[i][0]){
+        item_found = true;
+        console.log(item + " at index " + i);
+        if (database[item].hasOwnProperty("No complexity")) {
+          quantities_ranges.getCell(i, 0).setValue(database[item]["No complexity"]);
+          condition_met = true;
+          console.log(item + " No complexity " + database[item]["No complexity"] + " added.");
+        }
+        if (database[item].hasOwnProperty("High")){
+          quantities_ranges.getCell(i, 0).setValue(database[item]["High"]);
+          condition_met = true;
+          console.log(item + " High " + database[item]["High"] + " added.");
+        }
+        if (database[item].hasOwnProperty("Medium")) {
+          quantities_ranges.getCell(i+1, 0).setValue(database[item]["Medium"]);
+          condition_met = true;
+          console.log(item + " Medium " + database[item]["Medium"] + " added.");
+        }
+        if (database[item].hasOwnProperty("Low")) {
+          quantities_ranges.getCell(i+2, 0).setValue(database[item]["Low"]);
+          condition_met = true;
+          console.log(item + " Low " + database[item]["Low"] + " added.");
+        }
+        if (!condition_met) {  // Verifying if data was added to newly created worksheet
+          // If the flag is still false, none of the conditions were true
+          throw new Error("None of the conditions are true for item: " + item);
+        }
+        break; // skipping current item if found
+      }
+    }
+    if (!item_found){  // Verifying if current item in database was found in newly created worksheet
+      // If the flag is still false, none of the conditions were true
+      throw new Error("The current item was not found in column B: " + item);
     }
   }
-  // If item exists, and if complexity is not "No complexity", then iterate thorugh the complexities High, Medium, Low (or nest if and add value relative to current row (+0 ,+1, or +2))
-  // If item exists, but complexity is No complexity, add directly to row + 0
 }
 
 function getTotalRowsCount(worksheet: ExcelScript.Worksheet): number {
