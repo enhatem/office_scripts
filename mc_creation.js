@@ -16,8 +16,10 @@ function main(workbook: ExcelScript.Workbook) {
   // Extracting total and individual databases objects
   let total_db = databases.totalDatabases;
   let individual_db = databases.individualDatabases;
+  
+  console.log(total_db);
   // Creating New MC using the MC tab name at the desired template
-  createNewMC(workbook, config_sheet, mc_template_sheet, start_date);
+  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db);
 }
 
 function createDatabase(workbook: ExcelScript.Workbook, bl_tabs_list: string[]): { totalDatabases: object, individualDatabases: object }{
@@ -95,7 +97,7 @@ function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_e
   return {start: relative_start_row_index, end: relative_end_row_index };
 }
 
-function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown) {
+function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: object, individual_databases: object) {
   // Getting the desired new MC tab name using an XLOOKLUP function implementation
   let po_start_date_cell_address = findCellAddress(config_sheet, "PO Start Date");
   let onglet_mc_cell_address = findCellAddress(config_sheet, "Onglet MC");
@@ -111,6 +113,24 @@ function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.W
   // Adding remaining quantities to new mc sheet
   let remaining_quantities_range = new_mc_sheet.getRange("G3:G206");
   remaining_quantities_range.setValues(remaining_quantities_values);
+  // Adding new quantities
+  addNewTotalQuantities(new_mc_sheet, total_database);
+}
+
+function addNewTotalQuantities(worksheet: ExcelScript.Worksheet, database: object){
+  // Get relevant ranges
+  let wp_values = worksheet.getRange("B3:B206").getValues();
+  let quantities_ranges = worksheet.getRange("E3:E206");
+  console.log("database= ", database);
+  // Iterate though the ranges of the item with the object and check if item exist and correspond to current item row
+  for (let i = 0; i < wp_values.length; i++){
+    let current_name = wp_values[i][0];
+    if (database.hasOwnProperty(current_name)){
+      console.log(current_name);
+    }
+  }
+  // If item exists, and if complexity is not "No complexity", then iterate thorugh the complexities High, Medium, Low (or nest if and add value relative to current row (+0 ,+1, or +2))
+  // If item exists, but complexity is No complexity, add directly to row + 0
 }
 
 function getTotalRowsCount(worksheet: ExcelScript.Worksheet): number {
