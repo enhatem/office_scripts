@@ -123,11 +123,58 @@ function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.W
   // Creating list of PO Quantities ranges
   let po_ranges_list = getPoQuantityRanges(new_mc_sheet);
   // Adding quantities per periods
-  addQuantitiesPerPeriods(new_mc_sheet, po_ranges_list, individual_databases);
+  addQuantitiesPerPeriods(new_mc_sheet, po_ranges_list, dates_list, individual_databases);
 }
 
-function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_list: ExcelScript.Range[], individual_databases: object){
-  
+function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_list: ExcelScript.Range[], dates_list: string[], individual_databases: { [key: string]: { [key: string]: object } }){
+  // Getting the workpackages range values
+  let wp_values = worksheet.getRange("B3:B206").getValues();
+  // Iterating through each sub-database
+  let iter = -1;
+  for (const bl_tab_name in individual_databases){
+    iter +=1;
+    let current_database = individual_databases[bl_tab_name];
+    let current_po_range = po_ranges_list[iter];
+    // Iterate though the items (workpackage names) in the database and find them in the newly created worksheet
+    for (const item in current_database) {
+      let item_found = false;  // boolean used to verify that each item in database was found in the worksheet
+      let condition_met = false;  // boolean used to verify that data was added to worksheet for corresponding item
+      for (let i = 0; i < wp_values.length; i++) {
+        if (item === wp_values[i][0]) {
+          item_found = true;
+          if (current_database[item].hasOwnProperty("No complexity")) {
+            current_po_range.getCell(i, 0).setValue(current_database[item]["No complexity"]);
+            condition_met = true;
+            console.log(item + " No complexity " + current_database[item]["No complexity"] + " added to  PO");
+          }
+          if (current_database[item].hasOwnProperty("High")) {
+            current_po_range.getCell(i, 0).setValue(current_database[item]["High"]);
+            condition_met = true;
+            console.log(item + " High " + current_database[item]["High"] + " added.");
+          }
+          if (current_database[item].hasOwnProperty("Medium")) {
+            current_po_range.getCell(i + 1, 0).setValue(current_database[item]["Medium"]);
+            condition_met = true;
+            console.log(item + " Medium " + current_database[item]["Medium"] + " added.");
+          }
+          if (current_database[item].hasOwnProperty("Low")) {
+            current_po_range.getCell(i + 2, 0).setValue(current_database[item]["Low"]);
+            condition_met = true;
+            console.log(item + " Low " + current_database[item]["Low"] + " added.");
+          }
+          if (!condition_met) {  // Verifying if data was added to newly created worksheet
+            // If the flag is still false, none of the conditions were true
+            throw new Error("None of the conditions are true for item: " + item);
+          }
+          break;
+        }
+      }
+      if (!item_found) {  // Verifying if current item in database was found in newly created worksheet
+        // If the flag is still false, none of the conditions were true
+        throw new Error("The current item was not found in column B: " + item);
+      }
+    }
+  }
 }
 
 // Function that returns the 5 PO quantities ranges for a given worksheet
