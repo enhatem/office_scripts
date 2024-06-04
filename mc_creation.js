@@ -21,12 +21,24 @@ function main(workbook: ExcelScript.Workbook) {
   //   console.log(element);
   //   console.log(individual_db[element]);
   // }
-  let mc_worksheet = workbook.getWorksheet("");
+  // Get desired MC Worsheet name
+  let desired_mc_worksheet_name = getDesiredMcWorksheetName(config_sheet, start_date);
+  // let mc_worksheet = workbook.getWorksheet("");
   // Creating New MC using the MC tab name at the desired template
-  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db, dates_list);
+  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db, dates_list, desired_mc_worksheet_name);
 }
 
-function createDatabase(workbook: ExcelScript.Workbook, bl_tabs_list: string[]): { totalDatabases: object, individualDatabases: object }{
+function getDesiredMcWorksheetName(worksheet: ExcelScript.Worksheet, start_date: unknown): unknown{
+  // Getting the desired new MC tab name using an XLOOKLUP function implementation
+  let po_start_date_cell_address = findCellAddress(worksheet, "PO Start Date");
+  let onglet_mc_cell_address = findCellAddress(worksheet, "Onglet MC");
+  let lookup_range = findLookupOrReturnRange(worksheet, po_start_date_cell_address);
+  let return_range = findLookupOrReturnRange(worksheet, onglet_mc_cell_address);
+  let new_mc_tab_name = xLookUp(worksheet, lookup_range, return_range, start_date);
+  return new_mc_tab_name;
+}
+
+function createDatabase(workbook: ExcelScript.Workbook, bl_tabs_list: string[]): { totalDatabases: { [key: string]: { [key: string]: number } }, individualDatabases: { [key: string]: { [key: string]: object } } }{
   let workpackages_database = {}; // Object used to store the items and total quantities of all BLs
   let individual_databases = {};  // Object used to store the items and total quantities of each BL separately.
   // Iterating through the values of the bl_tabs_list
@@ -75,7 +87,7 @@ function createDatabase(workbook: ExcelScript.Workbook, bl_tabs_list: string[]):
   return {totalDatabases: workpackages_database, individualDatabases: individual_databases};
 }
 
-function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_end_row_indices: object, name: string): string[] {
+function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_end_row_indices: {start: number, end: number}, name: string): string[] {
   // Iterating through onglet bl
   let relevant_bl_tabs_list: string[] = [];
   let onglet_bl_cell_address = findCellAddress(config_sheet, name);
@@ -101,13 +113,8 @@ function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_e
   return {start: relative_start_row_index, end: relative_end_row_index };
 }
 
-function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: object, individual_databases: object, dates_list: string[]) {
-  // Getting the desired new MC tab name using an XLOOKLUP function implementation
-  let po_start_date_cell_address = findCellAddress(config_sheet, "PO Start Date");
-  let onglet_mc_cell_address = findCellAddress(config_sheet, "Onglet MC");
-  let lookup_range = findLookupOrReturnRange(config_sheet, po_start_date_cell_address);
-  let return_range = findLookupOrReturnRange(config_sheet, onglet_mc_cell_address);
-  let new_mc_tab_name = xLookUp(config_sheet, lookup_range, return_range, start_date);
+function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: { [key: string]: { [key: string]: number } }, individual_databases: { [key: string]: { [key: string]: object } }, dates_list: string[], new_mc_tab_name: unknown) {
+  
   // Extracting the remaining quantities from the master sheet tab
   let remaining_quantities_sheet = workbook.getWorksheet("master_sheet");
   let remaining_quantities_values = remaining_quantities_sheet.getRange("E3:E206").getValues();
