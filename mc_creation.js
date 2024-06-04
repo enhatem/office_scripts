@@ -17,10 +17,11 @@ function main(workbook: ExcelScript.Workbook) {
   let total_db = databases.totalDatabases;
   let individual_db = databases.individualDatabases;
   console.log(individual_db);
-  for (const element in individual_db){
-    console.log(element);
-    console.log(individual_db[element]);
-  }
+  // for (const element in individual_db){
+  //   console.log(element);
+  //   console.log(individual_db[element]);
+  // }
+  let mc_worksheet = workbook.getWorksheet("");
   // Creating New MC using the MC tab name at the desired template
   createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db, dates_list);
 }
@@ -130,11 +131,10 @@ function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_lis
   // Getting the workpackages range values
   let wp_values = worksheet.getRange("B3:B206").getValues();
   // Iterating through each sub-database
-  let iter = -1;
+  let iter = 0;
   for (const bl_tab_name in individual_databases){
-    iter +=1;
     let current_database = individual_databases[bl_tab_name];
-    let current_po_range = po_ranges_list[iter];
+    let current_po_range = po_ranges_list[iter++];
     // Iterate though the items (workpackage names) in the database and find them in the newly created worksheet
     for (const item in current_database) {
       let item_found = false;  // boolean used to verify that each item in database was found in the worksheet
@@ -142,36 +142,34 @@ function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_lis
       for (let i = 0; i < wp_values.length; i++) {
         if (item === wp_values[i][0]) {
           item_found = true;
-          if (current_database[item].hasOwnProperty("No complexity")) {
-            current_po_range.getCell(i, 0).setValue(current_database[item]["No complexity"]);
+
+          const item_data = current_database[item];
+          if (item_data.hasOwnProperty("No complexity")) {
+            current_po_range.getCell(i, 0).setValue(item_data["No complexity"]);
             condition_met = true;
-            console.log(item + " No complexity " + current_database[item]["No complexity"] + " added to  PO");
           }
-          if (current_database[item].hasOwnProperty("High")) {
-            current_po_range.getCell(i, 0).setValue(current_database[item]["High"]);
+          if (item_data.hasOwnProperty("High")) {
+            current_po_range.getCell(i, 0).setValue(item_data["High"]);
             condition_met = true;
-            console.log(item + " High " + current_database[item]["High"] + " added.");
           }
-          if (current_database[item].hasOwnProperty("Medium")) {
-            current_po_range.getCell(i + 1, 0).setValue(current_database[item]["Medium"]);
+          if (item_data.hasOwnProperty("Medium")) {
+            current_po_range.getCell(i + 1, 0).setValue(item_data["Medium"]);
             condition_met = true;
-            console.log(item + " Medium " + current_database[item]["Medium"] + " added.");
           }
-          if (current_database[item].hasOwnProperty("Low")) {
-            current_po_range.getCell(i + 2, 0).setValue(current_database[item]["Low"]);
+          if (item_data.hasOwnProperty("Low")) {
+            current_po_range.getCell(i + 2, 0).setValue(item_data["Low"]);
             condition_met = true;
-            console.log(item + " Low " + current_database[item]["Low"] + " added.");
           }
           if (!condition_met) {  // Verifying if data was added to newly created worksheet
             // If the flag is still false, none of the conditions were true
-            throw new Error("None of the conditions are true for item: " + item);
+            throw new Error(`No complexity, High, Medium, or Low properties found for item: ${item}`);
           }
           break;
         }
       }
       if (!item_found) {  // Verifying if current item in database was found in newly created worksheet
         // If the flag is still false, none of the conditions were true
-        throw new Error("The current item was not found in column B: " + item);
+        throw new Error(`Item not found in column B: ${item}`);
       }
     }
   }
@@ -202,11 +200,10 @@ function addDatesStrings(worksheet: ExcelScript.Worksheet, date_list: string[]){
   }
 }
 
-function addNewTotalQuantities(worksheet: ExcelScript.Worksheet, database: object){
+function addNewTotalQuantities(worksheet: ExcelScript.Worksheet, database: { [key: string]: { [key: string]: number } }){
   // Get relevant ranges
   let wp_values = worksheet.getRange("B3:B206").getValues();
   let quantities_ranges = worksheet.getRange("F3:F206");
-  console.log("database= ", database);
   // Iterate though the items (workpackage names) in the database and find them in the newly created worksheet
   for (const item in database){
     let item_found = false;  // boolean used to verify that each item in database was found in the worksheet
@@ -214,37 +211,34 @@ function addNewTotalQuantities(worksheet: ExcelScript.Worksheet, database: objec
     for (let i = 0; i < wp_values.length; i++){
       if (item === wp_values[i][0]){
         item_found = true;
-        console.log(item + " at index " + i);
-        if (database[item].hasOwnProperty("No complexity")) {
-          quantities_ranges.getCell(i, 0).setValue(database[item]["No complexity"]);
+        const item_data = database[item];
+
+        if (item_data.hasOwnProperty("No complexity")) {
+          quantities_ranges.getCell(i, 0).setValue(item_data["No complexity"]);
           condition_met = true;
-          console.log(item + " No complexity " + database[item]["No complexity"] + " added.");
         }
-        if (database[item].hasOwnProperty("High")){
-          quantities_ranges.getCell(i, 0).setValue(database[item]["High"]);
+        if (item_data.hasOwnProperty("High")){
+          quantities_ranges.getCell(i, 0).setValue(item_data["High"]);
           condition_met = true;
-          console.log(item + " High " + database[item]["High"] + " added.");
         }
-        if (database[item].hasOwnProperty("Medium")) {
-          quantities_ranges.getCell(i+1, 0).setValue(database[item]["Medium"]);
+        if (item_data.hasOwnProperty("Medium")) {
+          quantities_ranges.getCell(i + 1, 0).setValue(item_data["Medium"]);
           condition_met = true;
-          console.log(item + " Medium " + database[item]["Medium"] + " added.");
         }
-        if (database[item].hasOwnProperty("Low")) {
-          quantities_ranges.getCell(i+2, 0).setValue(database[item]["Low"]);
+        if (item_data.hasOwnProperty("Low")) {
+          quantities_ranges.getCell(i + 2, 0).setValue(item_data["Low"]);
           condition_met = true;
-          console.log(item + " Low " + database[item]["Low"] + " added.");
         }
         if (!condition_met) {  // Verifying if data was added to newly created worksheet
           // If the flag is still false, none of the conditions were true
-          throw new Error("None of the conditions are true for item: " + item);
+          throw new Error(`No complexity, High, Medium, or Low properties found for item: ${item}`);
         }
         break; // skipping current item if found
       }
     }
     if (!item_found){  // Verifying if current item in database was found in newly created worksheet
       // If the flag is still false, none of the conditions were true
-      throw new Error("The current item was not found in column B: " + item);
+      throw new Error(`Item not found in column B: ${item}`);
     }
   }
 }
