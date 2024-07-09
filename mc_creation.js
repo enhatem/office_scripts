@@ -17,18 +17,54 @@ function main(workbook: ExcelScript.Workbook) {
   let total_db = databases.totalDatabases;
   let individual_db = databases.individualDatabases;
   console.log(individual_db);
-  // for (const element in individual_db){
-  //   console.log(element);
-  //   console.log(individual_db[element]);
-  // }
-  // Get desired MC Worsheet name
   let desired_mc_worksheet_name = getDesiredMcWorksheetName(config_sheet, start_date);
-  // let mc_worksheet = workbook.getWorksheet("");
-  // Creating New MC using the MC tab name at the desired template
-  createNewMC(workbook, config_sheet, mc_template_sheet, start_date, total_db, individual_db, dates_list, desired_mc_worksheet_name);
+  let mc_worksheet = workbook.getWorksheet(desired_mc_worksheet_name);
+  // Checking if mc_worksheet exists
+  if (mc_worksheet){  // If a tab with the desired MC worksheet name exists, update worksheet
+    console.log("The tab " + desired_mc_worksheet_name + " exists. Updating existing sheet...");
+    updateMcWorksheet(mc_worksheet, total_db, individual_db, dates_list);
+  }else{  // Otherwise, create a new MC worksheet
+    console.log("The tab " + desired_mc_worksheet_name + " does not exist, creating a new MC worksheet.");
+    createNewMC(workbook, config_sheet, mc_template_sheet, total_db, individual_db, dates_list, desired_mc_worksheet_name);
+  }
 }
 
-function getDesiredMcWorksheetName(worksheet: ExcelScript.Worksheet, start_date: unknown): unknown{
+function updateMcWorksheet(worksheet: ExcelScript.Worksheet, total_database: { [key: string]: { [key: string]: number } }, individual_databases: { [key: string]: { [key: string]: object } }, dates_list: string[]){
+  console.log("placeholder");
+  // Adding/Updating new quantities
+  // addNewTotalQuantities(worksheet, total_database);
+  // Replace placeholders with dates
+  updateDatesStrings(worksheet, dates_list);
+  // Adding new total quantities
+  // addNewTotalQuantities(worksheet, total_database);
+  // Creating list of PO Quantities ranges
+  let po_ranges_list = getPoQuantityRanges(worksheet);
+  // Adding quantities per periods
+  addQuantitiesPerPeriods(worksheet, po_ranges_list, dates_list, individual_databases);
+}
+
+function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, total_database: { [key: string]: { [key: string]: number } }, individual_databases: { [key: string]: { [key: string]: object } }, dates_list: string[], new_mc_tab_name: unknown) {
+
+  // Extracting the remaining quantities from the master sheet tab
+  let remaining_quantities_sheet = workbook.getWorksheet("master_sheet");
+  let remaining_quantities_values = remaining_quantities_sheet.getRange("E3:E206").getValues();
+  // Duplicating template tab
+  let new_mc_sheet = mc_template_sheet.copy(ExcelScript.WorksheetPositionType.after, config_sheet);
+  new_mc_sheet.setName(new_mc_tab_name.toString());
+  // Adding remaining quantities to new mc sheet
+  let remaining_quantities_range = new_mc_sheet.getRange("G3:G206");
+  remaining_quantities_range.setValues(remaining_quantities_values);
+  // Adding new total quantities
+  // addNewTotalQuantities(new_mc_sheet, total_database);
+  // Replace placeholders with dates
+  addDatesStrings(new_mc_sheet, dates_list);
+  // Creating list of PO Quantities ranges
+  let po_ranges_list = getPoQuantityRanges(new_mc_sheet);
+  // Adding quantities per periods
+  addQuantitiesPerPeriods(new_mc_sheet, po_ranges_list, dates_list, individual_databases);
+}
+
+function getDesiredMcWorksheetName(worksheet: ExcelScript.Worksheet, start_date: unknown){
   // Getting the desired new MC tab name using an XLOOKLUP function implementation
   let po_start_date_cell_address = findCellAddress(worksheet, "PO Start Date");
   let onglet_mc_cell_address = findCellAddress(worksheet, "Onglet MC");
@@ -113,27 +149,6 @@ function getListByName(config_sheet: ExcelScript.Worksheet, relative_start_and_e
   return {start: relative_start_row_index, end: relative_end_row_index };
 }
 
-function createNewMC(workbook: ExcelScript.Workbook, config_sheet: ExcelScript.Worksheet, mc_template_sheet: ExcelScript.Worksheet, start_date: unknown, total_database: { [key: string]: { [key: string]: number } }, individual_databases: { [key: string]: { [key: string]: object } }, dates_list: string[], new_mc_tab_name: unknown) {
-  
-  // Extracting the remaining quantities from the master sheet tab
-  let remaining_quantities_sheet = workbook.getWorksheet("master_sheet");
-  let remaining_quantities_values = remaining_quantities_sheet.getRange("E3:E206").getValues();
-  // Duplicating template tab
-  let new_mc_sheet = mc_template_sheet.copy(ExcelScript.WorksheetPositionType.after, config_sheet);
-  new_mc_sheet.setName(new_mc_tab_name.toString());
-  // Adding remaining quantities to new mc sheet
-  let remaining_quantities_range = new_mc_sheet.getRange("G3:G206");
-  remaining_quantities_range.setValues(remaining_quantities_values);
-  // Adding new quantities
-  addNewTotalQuantities(new_mc_sheet, total_database);
-  // Replace placeholders with dates
-  addDatesStrings(new_mc_sheet, dates_list);
-  // Creating list of PO Quantities ranges
-  let po_ranges_list = getPoQuantityRanges(new_mc_sheet);
-  // Adding quantities per periods
-  addQuantitiesPerPeriods(new_mc_sheet, po_ranges_list, dates_list, individual_databases);
-}
-
 function addQuantitiesPerPeriods(worksheet: ExcelScript.Worksheet, po_ranges_list: ExcelScript.Range[], dates_list: string[], individual_databases: { [key: string]: { [key: string]: object } }){
   // Getting the workpackages range values
   let wp_values = worksheet.getRange("B3:B206").getValues();
@@ -190,6 +205,31 @@ function getPoQuantityRanges(worksheet: ExcelScript.Worksheet): ExcelScript.Rang
   let po4_range = worksheet.getRange("X3:X206");
   let po5_range = worksheet.getRange("AB3:AB206");
   return [po1_range, po2_range, po3_range, po4_range, po5_range];
+}
+
+function updateDatesStrings(worksheet: ExcelScript.Worksheet, date_list: string[]) {
+  // Getting the placeholders range values
+  let placeholder_range = worksheet.getRange("L1:AE1");
+  let placeholder_range_values = placeholder_range.getValues()[0];  // the [0] is necessary to since we would get an array of arrays otherwise
+  // Perform first iteration to see if any new dates were updates (mainly, to find the iterator index)
+  let start_index = 0;
+  for (let i = 0; i < date_list.length; i++) {
+    for (let j = 0; j < placeholder_range_values.length; j++) {
+      if (placeholder_range_values[j] === date_list[i]){ // If date_list[i] exists in the placeholder range
+        start_index++; // Incrementing starting index
+        break;
+      }
+    }
+  }
+  // Replacing the placeholders with the dates from date_list (Starting from start_index)
+  for (let i = start_index; i < date_list.length; i++) {
+    for (let j = 0; j < placeholder_range_values.length; j++) {
+      if (placeholder_range_values[j] === "PO" + (i + 1)) {
+        placeholder_range.getCell(0, j).setValue(date_list[i]);
+        break;
+      }
+    }
+  }
 }
 
 function addDatesStrings(worksheet: ExcelScript.Worksheet, date_list: string[]){
