@@ -16,7 +16,6 @@ function main(workbook: ExcelScript.Workbook) {
   // Extracting total and individual databases objects
   let total_db = databases.totalDatabases;
   let individual_db = databases.individualDatabases;
-  console.log(individual_db);
   let desired_mc_worksheet_name = getDesiredMcWorksheetName(config_sheet, start_date);
   let mc_worksheet = workbook.getWorksheet(desired_mc_worksheet_name);
   // Checking if mc_worksheet exists
@@ -27,6 +26,10 @@ function main(workbook: ExcelScript.Workbook) {
     console.log("The tab " + desired_mc_worksheet_name + " does not exist, creating a new MC worksheet.");
     createNewMC(workbook, config_sheet, mc_template_sheet, total_db, individual_db, dates_list, desired_mc_worksheet_name);
   }
+  // DEBUG
+  // console.log("total_db: ", total_db);
+  // console.log("individual_db: ", individual_db);
+
 }
 
 function updateMcWorksheet(worksheet: ExcelScript.Worksheet, total_database: { [key: string]: { [key: string]: number } }, individual_databases: { [key: string]: { [key: string]: object } }, dates_list: string[]){
